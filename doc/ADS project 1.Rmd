@@ -1,0 +1,180 @@
+---
+title: "ADS project 1"
+author: "yang xing"
+date: "09/16/2018"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Part I
+This part is all about some data exploration from HappyDB
+```{r read library}
+library(tm)
+library(tidytext)
+library(tidyverse)
+library(DT)
+library(stringr)
+library(scales)
+library(wordcloud)
+library(topicmodels)
+```
+
+```{r read data}
+urlfile<-'https://raw.githubusercontent.com/rit-public/HappyDB/master/happydb/data/demographic.csv'
+demo_data <- read.csv(urlfile,as.is = TRUE)
+
+hm_data <- read.csv("processed_moments.csv",as.is = TRUE)
+hm_data <- hm_data %>%
+  inner_join(demo_data, by = "wid")
+```
+```{r wordcloud}
+wordcloud(words = hm_data$text, min.freq = 1500, random.order = FALSE, colors = rainbow(5))
+```
+```{r sentimental analysis}
+poswords <- scan("positive-words.txt", what = 'character', comment.char = ";")
+negwords <- scan("negative-words.txt", what = 'character', comment.char = ";")
+sum(!is.na((match(x = hm_data$text, poswords))))
+sum(!is.na((match(x = hm_data$text, negwords))))
+ratio <- sum(!is.na((match(x = hm_data$text, poswords)))) / sum(!is.na((match(x = hm_data$text, negwords))))
+ratio
+```
+As we could expect, this is a positive article.
+
+
+```{r single word frequency}
+hm_data_tokenize <- hm_data %>%
+  unnest_tokens(word,text) %>%
+  count(word,sort = TRUE)
+head(hm_data_tokenize,10)
+
+hm_data_ggplot_tokenize <- hm_data_tokenize %>%
+  head(10) %>%
+  mutate(word = reorder(word,n))%>%
+  ggplot(aes(word,n))+
+  geom_col(color="black", fill="steelblue")+
+  xlab(NULL)+
+  coord_flip()
+hm_data_ggplot_tokenize
+```
+
+```{r two word frequency}
+hm_data_bigram <- hm_data %>%
+  unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
+  count(bigram,sort = TRUE)
+head(hm_data_bigram,10)
+```
+
+
+```{r three word frequency}
+hm_data_trigram <- hm_data %>%
+  unnest_tokens(trigram, text, token = "ngrams", n = 3) %>%
+  count(trigram,sort = TRUE)
+head(hm_data_trigram,10)
+```
+ As we could see, "played" or "watched" some activities with our "friend" and "family" plays an important role in making people happy. Have some "ice cream" to eat is useful for good mood as well.
+ 
+##Part II
+This part is talking about the details changing for seven predicted category if we seperate the data into different groups.
+#Predicted category VS Reflection Period
+```{r predicted category VS reflection period}
+ggplot(hm_data, aes(x=as.factor(hm_data$predicted_category))) + 
+  facet_wrap(~hm_data$reflection_period) + 
+  geom_bar(aes(y=..count../sum(..count..)),color = "black",fill= "steelblue") +
+  scale_y_continuous(labels=percent_format())+
+  xlab("Predicted Category") + 
+  ylab("Proportion") +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+```
+
+```{r top ten frequent word}
+hm_data_24h <- hm_data[hm_data$reflection_period ==  "24h", ]
+hm_data_3m <- hm_data[hm_data$reflection_period ==  "3m", ]
+hm_data_24h_tokenize <- hm_data_24h %>%
+  unnest_tokens(word,text) %>%
+  count(word,sort = TRUE)
+head(hm_data_24h_tokenize,10)
+
+hm_data_3m_tokenize <- hm_data_3m %>%
+  unnest_tokens(word,text) %>%
+  count(word,sort = TRUE)
+head(hm_data_3m_tokenize,10)
+```
+
+```{r}
+hm_data_24h_ggplot <- hm_data_24h %>%
+  unnest_tokens(word,text) %>%
+  count(word,sort = TRUE) %>%
+  head(10) %>%
+  #filter(n>2000) %>%
+  mutate(word = reorder(word,n))%>%
+  ggplot(aes(word,n))+
+  geom_col(color="black", fill="steelblue")+
+  xlab(NULL)+
+  coord_flip()
+hm_data_24h_ggplot
+
+hm_data_3m_tokenize <- hm_data_3m %>%
+  unnest_tokens(word,text) %>%
+  count(word,sort = TRUE) %>%
+  head(10) %>%
+  #filter(n>2000) %>%
+  mutate(word = reorder(word,n))%>%
+  ggplot(aes(word,n))+
+  geom_col(color="black", fill="steelblue")+
+  xlab(NULL)+
+  coord_flip()
+hm_data_3m_tokenize
+```
+
+```{r difference between different relection period}
+table(hm_data_24h$predicted_category) - table(hm_data_3m$predicted_category)
+```
+ From the above infomation in different reflection period, something about exercise and leisure appears more frequently in 24 hours than in 3 months. However the achievent and affection appear more often in 3m relection period. It indicates that the longer the reflection, the more people tend to recall the big events rather than food and entertainment
+
+#Predicted category VS Marital status
+```{r predicted category VS marital status.}
+hm_data_marital <- hm_data[hm_data$marital == "married" |hm_data$marital == "single",]
+ggplot(hm_data_marital, aes(x=as.factor(hm_data_marital$predicted_category))) + 
+  facet_wrap(~hm_data_marital$marital) + 
+  geom_bar(aes(y=..count../sum(..count..)),color = "black",fill= "steel blue") +
+  scale_y_continuous(labels=percent_format())+
+  xlab("Predicted Category") + 
+  ylab("Proportion") +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+```
+As we could see, the sigle person more like to talk about the achievement they made in the past. But the married person prefer to take about their affection, which is activity with family members and loved ones.
+#Predicted category VS Parenthood
+```{r predicted category VS parenthood.}
+hm_data_parenthood <- hm_data[hm_data$parenthood == "n" |hm_data$parenthood == "y",]
+ggplot(hm_data_parenthood, aes(x=as.factor(hm_data_parenthood$predicted_category))) + 
+  facet_wrap(~hm_data_parenthood$parenthood) + 
+  geom_bar(aes(y=..count../sum(..count..)),color = "black",fill= "steelblue") +
+  scale_y_continuous(labels=percent_format())+
+  xlab("Predicted Category") + 
+  ylab("Proportion") +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+```
+
+As we could see, the sigle person more like to talk about the achievement they made in the past. But the married person prefer to take about their affection, which is activity with family members and loved ones.
+#Predicted category VS Gender
+```{r predicted category VS gender}
+hm_data_gender <- hm_data[hm_data$gender == "f" |hm_data$gender == "m",]
+ggplot(hm_data_gender, aes(x=as.factor(hm_data_gender$predicted_category))) + 
+  facet_wrap(~hm_data_gender$gender) + 
+  geom_bar(aes(y=..count../sum(..count..)),color = "black",fill= "steelblue") +
+  scale_y_continuous(labels=percent_format())+
+  xlab("Predicted Category") + 
+  ylab("Proportion") +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+```
+As we could see, the male more like to talk about the achievement they made in the past. But the female prefer to take about their affection, which is activity with family members and loved ones.
+
+##Conclusion
+ Basically, this project contains two parts. The first part is about the general picture of the data. The wordcloud, sentimental analysis and frequency words, etc. I found that is a good idea to spend sometime doing activities with friends and familis is good for our mood.
+ Second part is about some detail analysis about predicted category respect to different group. It seems like people with 24 hours relection period more like to recall their "affection" and "leisure" compare to people with 3 month reflection period.  Moreover, male people and parents without kids will foucus on their "achievement" and "affection" compare to others.
