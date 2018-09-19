@@ -4,6 +4,7 @@ author: "Arpita Shah and Tian Zheng"
 output:
   html_document:
     df_print: paged
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}

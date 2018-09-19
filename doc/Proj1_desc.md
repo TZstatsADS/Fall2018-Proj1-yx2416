@@ -1,3 +1,8 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
 ## Applied Data Science @ Columbia
 ## STAT GR5243/GU4243 Fall 2018 
 ### Project 1 An R Notebook Data Story on Happy Moments
